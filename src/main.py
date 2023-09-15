@@ -1,6 +1,9 @@
 import numpy as np
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
+import matplotlib.pyplot as plt
+import imageio
+import os
 
 import helper
 
@@ -80,8 +83,9 @@ def newmark(beta, gamma, eta):
     s_matrix = helper.get_s(new_elast, new_mom_of_inertia, stuetzstellen, length, num_elem, ord_of_quad)
     energy_array = []
 
+    filenames = []
     x_axis_newmark = np.linspace(0, length, (num_elem + 1))
-    for _ in range(0, int(num_t_steps/eta)):
+    for i in range(0, int(num_t_steps/eta)):
         a_temp   = start_a + (start_a_v * eta) + ((1/2 - beta) * start_a_acc * pow(eta, 2))
         a_temp_v = start_a_v + (1 - gamma) * start_a_acc * eta
 
@@ -111,18 +115,36 @@ def newmark(beta, gamma, eta):
         energy = (1 / 2 * alpha_p_v.transpose() @ m_matrix @ alpha_p_v) + temp_var_to_transpose.transpose() @ alpha_p
         energy_array.append(energy.toarray()[0][0])
 
-        # create a picture of the beam for every time step
-        # helper.get_plot(x_axis_newmark, w_newmark.toarray(), y_lim1=-0.5, y_lim2=0.5, x_label=f'x in m mit n = {num_elem}', y_label='\u03C9 in m'
-        #                 , title='Newmark')
+        # create a picture of the beam for every time step, safe it for the gif creation
+        w_new_arr = w_newmark.toarray()
+        plt.plot(x_axis_newmark, w_new_arr)
+        plt.xlabel(f'x in m mit n = {num_elem}')
+        plt.ylabel('\u03C9 in m')
+        plt.xlim(0, length)
+        plt.ylim(-0.5, 0.5)
+        plt.title('Newmark')
+        filename = f"temp_{i}.png"
+        plt.savefig(filename)
+        filenames.append(filename)
+        plt.close()
 
         # assign the start values to the calculated values of the next step
         start_a     = a_p_1
         start_a_v   = a_v_p_1
         start_a_acc = a_acc_p_1
 
-    x_axis_energy = np.linspace(0, num_t_steps, int(num_t_steps/eta), dtype=float)
-    helper.get_plot(x_axis_energy, energy_array, 0, 0.03, x_lim1=-2, x_lim2=100, x_label="t in s", y_label="Energie in J",
+    x_axis_energy = np.linspace(0, num_t_steps, int(num_t_steps / eta), dtype=float)
+    helper.get_plot(x_axis_energy, energy_array, 0, 0.03, x_lim1=-2, x_lim2=100, x_label="t in s",
+                    y_label="Energie in J",
                     title=f"Energie für \u03B2 = {beta}, \u03B3 = {gamma}, \u03B7 = {eta}")
+
+    with imageio.get_writer('my_gif.gif', mode='I', duration=0.1) as writer:
+        for filename in filenames:
+            image = imageio.v2.imread(filename)
+            writer.append_data(image)
+
+    for filename in filenames:
+        os.remove(filename)
 
 
 # Aufgabe 14
